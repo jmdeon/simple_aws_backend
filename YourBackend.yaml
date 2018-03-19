@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Resources:
+
+  YourFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: yourCode.handler
+      Runtime: nodejs6.10
+      CodeUri: yourModule/
+      Events:
+        Your:
+          Type: Api
+          Properties:
+            Path: "/resource/{id}"
+            Method: post
+            RestApiId:
+              !Ref YourApi
+
+  YourApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+          swagger: "2.0"
+          info:
+            title: Simple Serverless Api
+          paths:
+            "/resource/{id}":
+              post:
+                x-amazon-apigateway-integration:
+                  credentials: !GetAtt ApiGatewayToLambdaRole.Arn
+                  httpMethod: POST
+                  type: aws_proxy
+                  uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${YourApi.Arn}/invocations"
+                responses: { }
+
+  ApiGatewayToLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        -
+          PolicyName: ApiGatewayToLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                  - "iam:PassRole"
+                Resource: '*'
